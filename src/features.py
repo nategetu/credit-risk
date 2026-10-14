@@ -11,6 +11,9 @@ FEATURE_COLUMNS = [
     "delinquencies_2yr", "dti", "loan_to_income",
     "purpose_debt_consolidation", "purpose_credit_card",
     "purpose_home_improvement", "purpose_medical",
+    "fico_score", "term_60", "revol_util", "revol_bal_to_income",
+    "inquiries_6m", "total_accounts", "emp_length_years",
+    "emp_length_missing", "home_rent", "home_mortgage",
 ]
 
 
@@ -27,6 +30,23 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = purpose_dummies[col].astype(int)
         else:
             df[col] = 0
+
+    df["term_60"] = (df["term_months"] == 60).astype(int)
+    df["revol_bal_to_income"] = df["revol_bal"] / df["annual_income"].clip(lower=1)
+
+    # Missing employment length is filled with 0 AND flagged, so the
+    # logistic regression (which can't take NaN) can still use the rows,
+    # and both models can learn whether "missing" itself carries risk.
+    # to_numeric matters for single-row API requests: an omitted value
+    # arrives as None, which pandas stores as an object column that
+    # LightGBM refuses.
+    emp = pd.to_numeric(df["emp_length_years"], errors="coerce")
+    df["emp_length_missing"] = emp.isna().astype(int)
+    df["emp_length_years"] = emp.fillna(0).astype(float)
+
+    # OWN (and LC's handful of OTHER/NONE/ANY) is the reference category.
+    df["home_rent"] = (df["home_ownership"] == "RENT").astype(int)
+    df["home_mortgage"] = (df["home_ownership"] == "MORTGAGE").astype(int)
 
     return df
 

@@ -18,6 +18,13 @@ STANDARD_COLUMNS = [
     "loan_id", "origination_date", "annual_income", "loan_amount",
     "credit_history_months", "open_accounts", "delinquencies_2yr",
     "dti", "loan_purpose", "region", "defaulted",
+    # Credit-bureau and application fields added after the first model
+    # (AUC 0.60 on the original 11 features). All are known at application
+    # time. Deliberately NOT included: Lending Club's own `grade`,
+    # `sub_grade`, and `int_rate` -- those are LC's risk model output, so
+    # using them would mostly mean re-learning LC's pricing.
+    "fico_score", "term_months", "revol_util", "revol_bal", "inquiries_6m",
+    "total_accounts", "emp_length_years", "home_ownership",
 ]
 
 # Identity mapping: the synthetic generator already writes STANDARD_COLUMNS.
@@ -35,7 +42,11 @@ LC_LOAN_STATUS_TO_DEFAULTED = {
 LC_USECOLS = [
     "id", "issue_d", "annual_inc", "loan_amnt", "earliest_cr_line",
     "open_acc", "delinq_2yrs", "dti", "purpose", "zip_code", "loan_status",
-    "term",
+    "term", "fico_range_low", "fico_range_high", "revol_util", "revol_bal",
+    "inq_last_6mths", "total_acc", "emp_length", "home_ownership",
+    # Not used: mort_acc. It's 100% missing for every 2007-2011 vintage, so
+    # under a time-based split the training set would be mostly NaN while
+    # the test set is fully populated -- a train/test mismatch, not signal.
 ]
 LC_SAMPLE_SIZE = 200_000
 LC_SAMPLE_SEED = 42
@@ -75,6 +86,16 @@ def _load_lending_club(path: Path) -> pd.DataFrame:
     term_months = df["term"].str.strip().str.split().str[0].astype(int)
     maturity_period = df["origination_date"].dt.to_period("M") + term_months
     df = df[maturity_period <= snapshot_period]
+    df["term_months"] = term_months.loc[df.index]
+
+    # LC reports FICO as a 4-5 point range at origination; the midpoint is
+    # the standard single-number summary.
+    df["fico_score"] = (df["fico_range_low"] + df["fico_range_high"]) / 2
+
+    # "10+ years" -> 10, "< 1 year" -> 0, missing stays NaN (features.py
+    # turns that into an explicit missing flag rather than guessing).
+    df["emp_length_years"] = df["emp_length"].str.extract(r"(\d+)", expand=False).astype(float)
+    df.loc[df["emp_length"].str.startswith("<", na=False), "emp_length_years"] = 0.0
 
     # zip_code arrives pre-anonymized to a 3-digit prefix (e.g. "190xx"). The
     # full zip3 is too sparse (~900 groups) for a readable disparate-impact
@@ -89,11 +110,13 @@ def _load_lending_club(path: Path) -> pd.DataFrame:
         "open_acc": "open_accounts",
         "delinq_2yrs": "delinquencies_2yr",
         "purpose": "loan_purpose",
+        "inq_last_6mths": "inquiries_6m",
+        "total_acc": "total_accounts",
     })
 
     df = df.dropna(subset=[
         "annual_income", "dti", "credit_history_months", "open_accounts",
-        "delinquencies_2yr", "region",
+        "delinquencies_2yr", "region", "revol_util",
     ])
 
     if len(df) > LC_SAMPLE_SIZE:

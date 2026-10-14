@@ -41,6 +41,16 @@ def generate(n=N_LOANS, seed=42) -> pd.DataFrame:
     # check in train_logistic.py against a variable that SHOULDN'T predict risk.
     region = rng.choice(["A", "B", "C", "D"], size=n)
 
+    fico_score = np.clip(rng.normal(695, 30, size=n), 620, 850).round()
+    term_months = rng.choice([36, 60], size=n, p=[0.75, 0.25])
+    revol_util = np.clip(rng.normal(55, 24, size=n), 0, 150).round(1)
+    revol_bal = (annual_income * rng.uniform(0, 0.4, size=n)).round(2)
+    inquiries_6m = rng.poisson(0.7, size=n)
+    total_accounts = open_accounts + rng.integers(0, 30, size=n)
+    emp_length_years = rng.integers(0, 11, size=n).astype(float)
+    emp_length_years[rng.random(n) < 0.05] = np.nan  # ~5% missing, like LC
+    home_ownership = rng.choice(["RENT", "MORTGAGE", "OWN"], size=n, p=[0.40, 0.50, 0.10])
+
     # ---- true underlying default-risk process (log-odds), used to LABEL data ----
     log_odds = (
         -3.2
@@ -49,6 +59,11 @@ def generate(n=N_LOANS, seed=42) -> pd.DataFrame:
         + 0.40 * delinquencies_2yr
         - 0.15 * (credit_history_months / 60)
         + 0.10 * (loan_amount / 10000)
+        - 0.25 * ((fico_score - 695) / 30)
+        + 0.35 * (term_months == 60)
+        + 0.10 * ((revol_util - 55) / 24)
+        + 0.12 * inquiries_6m
+        + 0.15 * (home_ownership == "RENT")
         + rng.normal(0, 0.6, size=n)  # irreducible noise
     )
     default_prob = 1 / (1 + np.exp(-log_odds))
@@ -66,6 +81,14 @@ def generate(n=N_LOANS, seed=42) -> pd.DataFrame:
         "loan_purpose": loan_purpose,
         "region": region,
         "defaulted": defaulted,
+        "fico_score": fico_score,
+        "term_months": term_months,
+        "revol_util": revol_util,
+        "revol_bal": revol_bal,
+        "inquiries_6m": inquiries_6m,
+        "total_accounts": total_accounts,
+        "emp_length_years": emp_length_years,
+        "home_ownership": home_ownership,
     })
 
     # sprinkle in some realistic data quality issues on purpose, so Phase 3's

@@ -40,6 +40,7 @@ EPSILON = 1e-4
 MONITORED_COLUMNS = [
     "dti", "log_income", "loan_amount", "credit_history_months",
     "open_accounts", "delinquencies_2yr", "loan_to_income",
+    "fico_score", "revol_util", "inquiries_6m", "total_accounts",
 ]
 
 

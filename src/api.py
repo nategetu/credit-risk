@@ -73,6 +73,14 @@ class LoanApplication(BaseModel):
     delinquencies_2yr: int = Field(..., ge=0)
     dti: float = Field(..., ge=0, le=100)
     loan_purpose: str
+    fico_score: float = Field(..., ge=300, le=850)
+    term_months: Literal[36, 60]
+    revol_util: float = Field(..., ge=0)
+    revol_bal: float = Field(..., ge=0)
+    inquiries_6m: int = Field(..., ge=0)
+    total_accounts: int = Field(..., ge=0)
+    emp_length_years: float | None = Field(None, ge=0, le=10)
+    home_ownership: Literal["RENT", "MORTGAGE", "OWN", "OTHER"]
 
 
 class FeatureContribution(BaseModel):
@@ -132,12 +140,25 @@ def predict(application: LoanApplication) -> PredictResponse:
         "delinquencies_2yr": application.delinquencies_2yr,
         "dti": application.dti,
         "loan_purpose": application.loan_purpose,
+        "fico_score": application.fico_score,
+        "term_months": application.term_months,
+        "revol_util": application.revol_util,
+        "revol_bal": application.revol_bal,
+        "inquiries_6m": application.inquiries_6m,
+        "total_accounts": application.total_accounts,
+        "emp_length_years": application.emp_length_years,
+        "home_ownership": application.home_ownership,
         "log_income": float(engineered_row["log_income"]),
         "loan_to_income": float(engineered_row["loan_to_income"]),
         "purpose_debt_consolidation": float(engineered_row["purpose_debt_consolidation"]),
         "purpose_credit_card": float(engineered_row["purpose_credit_card"]),
         "purpose_home_improvement": float(engineered_row["purpose_home_improvement"]),
         "purpose_medical": float(engineered_row["purpose_medical"]),
+        "term_60": float(engineered_row["term_60"]),
+        "revol_bal_to_income": float(engineered_row["revol_bal_to_income"]),
+        "emp_length_missing": float(engineered_row["emp_length_missing"]),
+        "home_rent": float(engineered_row["home_rent"]),
+        "home_mortgage": float(engineered_row["home_mortgage"]),
         "default_probability": default_probability,
         "decision": decision,
         "decision_threshold": decision_threshold,

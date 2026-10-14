@@ -32,6 +32,18 @@ def validate_loans(df: pd.DataFrame) -> pd.DataFrame:
         n = int(df["loan_amount"].le(0).sum())
         errors.append(f"{n} rows have non-positive loan_amount")
 
+    if not df["fico_score"].between(300, 850).all():
+        n = int((~df["fico_score"].between(300, 850)).sum())
+        errors.append(f"{n} rows have fico_score outside 300-850 (impossible)")
+
+    if df["revol_util"].lt(0).any():
+        n = int(df["revol_util"].lt(0).sum())
+        errors.append(f"{n} rows have negative revol_util")
+
+    if not df["term_months"].isin([36, 60]).all():
+        n = int((~df["term_months"].isin([36, 60])).sum())
+        errors.append(f"{n} rows have a term other than 36 or 60 months")
+
     if df["defaulted"].isin([0, 1]).all() is False:
         errors.append("defaulted column has values outside {0, 1}")
 
@@ -62,6 +74,9 @@ def clean_invalid_rows(df: pd.DataFrame) -> pd.DataFrame:
     df = df[df["annual_income"] >= 0]
     df = df[df["dti"].between(0, 100)]
     df = df[df["loan_amount"] > 0]
+    df = df[df["fico_score"].between(300, 850)]
+    df = df[df["revol_util"] >= 0]
+    df = df[df["term_months"].isin([36, 60])]
     after = len(df)
     if after < before:
         print(f"Quarantined {before - after} invalid rows ({(before - after) / before:.2%} of data)")

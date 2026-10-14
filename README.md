@@ -52,6 +52,17 @@ worth knowing about if you extend it:
 - Data is sampled to 200k rows (stratified by origination year) for fast
   iteration; the full filtered dataset is several times larger.
 
+## Current results
+
+On a time-based holdout of Lending Club loans (originated Sep–Dec 2015),
+the served LightGBM model reaches **test AUC 0.664** with a mean
+calibration error of 0.014. Adding credit-bureau features (FICO, inquiries,
+revolving utilization, employment length, term, home ownership, total
+accounts) lifted AUC from 0.612 on the original 11 application features.
+Lending Club's own `grade` / `int_rate` are excluded on purpose. See
+[MODEL_CARD.md](MODEL_CARD.md) for the full feature list, what was left
+out and why, and the calibration decision.
+
 ## Project structure
 
 ```

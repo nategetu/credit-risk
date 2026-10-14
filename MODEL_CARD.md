@@ -18,10 +18,23 @@ monitoring, and known limitations.
   specific applicant be scored." It is not wired into the API and was never
   intended to be; regularizing or otherwise touching it for predictive
   performance would break the classical-inference guarantees it exists for.
-- **Features** (`src/features.py`): `log_income`, `loan_amount`,
-  `credit_history_months`, `open_accounts`, `delinquencies_2yr`, `dti`,
-  `loan_to_income`, and one-hot loan purpose (`debt_consolidation`,
-  `credit_card`, `home_improvement`, `medical`). All are point-in-time
+- **Features** (`src/features.py`, 21 total):
+  - *Application*: `log_income`, `loan_amount`, `loan_to_income`, `dti`,
+    `term_60`, one-hot loan purpose (`debt_consolidation`, `credit_card`,
+    `home_improvement`, `medical`), `emp_length_years` +
+    `emp_length_missing`, and home ownership (`home_rent`,
+    `home_mortgage`; OWN is the reference).
+  - *Credit bureau*: `fico_score` (midpoint of LC's reported range),
+    `credit_history_months`, `open_accounts`, `total_accounts`,
+    `delinquencies_2yr`, `inquiries_6m`, `revol_util`,
+    `revol_bal_to_income`.
+  - *Deliberately excluded*: LC's `grade`, `sub_grade`, and `int_rate`
+    (LC's own risk model output — using them would mostly re-learn LC's
+    pricing), public records and income verification (no measurable lift
+    in a leave-one-out comparison), and `mort_acc` (100% missing for
+    2007–2011 vintages, so the time-based train set would be mostly NaN
+    while the test set is fully populated).
+  - All are point-in-time
   attributes of the applicant/application, captured once, at the moment of
   application — none are ongoing or externally-sourced (e.g. no macro
   indicators).
@@ -72,9 +85,14 @@ monitoring, and known limitations.
 
 | Metric | Raw | Calibrated |
 |---|---|---|
-| AUC | 0.6123 | 0.6123 |
-| Brier score | 0.1239 | 0.1241 |
-| Calibration error | **0.0073** | 0.0129 |
+| AUC | 0.6639 | 0.6639 |
+| Brier score | 0.1221 | 0.1226 |
+| Calibration error | **0.0141** | 0.0197 |
+
+Adding the credit-bureau features raised test AUC from 0.612 (original
+11 features) to 0.664. FICO alone accounts for the largest single gain
+(+0.04 on its own); inquiries, revolving utilization, employment length,
+and term each add smaller increments.
 
 ## 6. Calibration decision — what was found, and why raw ships
 
@@ -87,8 +105,9 @@ monitoring, and known limitations.
   several CV folds instead of averaging them, and would remove human
   accountability for a decision that affects real approve/deny outcomes.)
 - **Finding on real data**: calibration (Platt scaling, fit on the held-out
-  calibration slice) made calibration error *worse* — 0.0073 raw vs. 0.0129
-  calibrated.
+  calibration slice) made calibration error *worse* — 0.0141 raw vs. 0.0197
+  calibrated on the current model (0.0073 vs. 0.0129 on the original
+  11-feature model; the finding has held across both).
 - **Why**: `learning_rate=0.05` + `min_child_samples=30` already constrain
   GBM's typical overconfidence mechanism (boosting keeps chasing a residual
   that's only zero at 0/1), so there was little systematic bias left for
@@ -190,6 +209,7 @@ monitoring, and known limitations.
 3. No case-level human review of individual decisions (Section 8).
 4. No fairness gate in CI (Section 9).
 5. No live drift monitoring or backtesting wired into production (Section 10).
-6. AUC (0.61) is modest — meaningful rank-ordering signal, not a highly
-   discriminative model; consistent with a small, mostly-application-time
-   feature set.
+6. AUC (0.66) is moderate — meaningful rank-ordering signal, but below
+   what's achievable with LC's own grade/interest rate (excluded on
+   purpose, see Section 1) or richer bureau data (full tradeline history,
+   payment-level behavior) that LC's public file doesn't include.

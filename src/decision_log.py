@@ -49,6 +49,14 @@ decisions = Table(
     Column("delinquencies_2yr", Float, nullable=False),
     Column("dti", Float, nullable=False),
     Column("loan_purpose", String, nullable=False),
+    Column("fico_score", Float, nullable=False),
+    Column("term_months", Float, nullable=False),
+    Column("revol_util", Float, nullable=False),
+    Column("revol_bal", Float, nullable=False),
+    Column("inquiries_6m", Float, nullable=False),
+    Column("total_accounts", Float, nullable=False),
+    Column("emp_length_years", Float, nullable=True),  # optional on the application
+    Column("home_ownership", String, nullable=False),
     # Engineered features exactly as fed to the model (FEATURE_COLUMNS in
     # features.py) -- the population PSI will compare against training.
     Column("log_income", Float, nullable=False),
@@ -57,6 +65,11 @@ decisions = Table(
     Column("purpose_credit_card", Float, nullable=False),
     Column("purpose_home_improvement", Float, nullable=False),
     Column("purpose_medical", Float, nullable=False),
+    Column("term_60", Float, nullable=False),
+    Column("revol_bal_to_income", Float, nullable=False),
+    Column("emp_length_missing", Float, nullable=False),
+    Column("home_rent", Float, nullable=False),
+    Column("home_mortgage", Float, nullable=False),
     # Decision + explanation.
     Column("default_probability", Float, nullable=False),
     Column("decision", String, nullable=False),
